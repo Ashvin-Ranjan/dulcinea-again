@@ -1,4 +1,4 @@
-import { getToken } from './token.js';
+import { getInput } from './token.js';
 import { selectVoiceChannel } from './voice-list.js';
 
 import Client, { CannotConnectError } from './discord/server_client.js';
@@ -12,7 +12,7 @@ async function main() {
   document.body.classList.remove('screen-loading');
   document.body.classList.add('screen-token');
   const tokenForm = document.getElementById('token-form');
-  const inputs = await getToken({
+  const inputs = await getInput({
     storageKeys: {
       token: '[discordjackbox] bot token',
       port: '[discordjackbox] server port',
@@ -27,14 +27,15 @@ async function main() {
   tokenForm.remove();
   document.body.classList.remove('screen-token');
   document.body.classList.add('screen-loading');
-  // something something funni yayayay
-  client.initialize(inputs.token, token.port);
+
+  client.initialize(inputs.token, inputs.port);
   try {
     // Await the ready event
     await client.connect();
   } catch (e) {
     // TODO: Implement checks to see if it was that the server was busy and mald at the user if so
     await client.disconnect();
+    // TODO: Fix something with this connect not working
     await client.connect();
   }
 

@@ -1,44 +1,120 @@
-const TOKEN = process.env['TOKEN']; // Get TOKEN
-const express = require('express');
-const cors = require('cors');
-const TetLib = require('./TetLib');
+const { Client, GatewayIntentBits } = require('discord.js');
+const ws = require('ws');
 
-// Load bazaar name conversions
+// Get config
 const config = require('./config');
 
+// Some helper stuff
 const info = (message) => {
   console.log(`\u001b[36m[INFO]\u001b[m: ${message}`);
+};
+
+const debug = (message) => {
+  console.log(`\u001b[32m[DEBUG]\u001b[m: ${message}`);
 };
 
 const error = (message) => {
   console.log(`\u001b[31m[ERROR]\u001b[m: ${message}`);
 };
 
-const app = express();
+// Other functions
+const guildData = () => {
+  return JSON.stringify({
+    intent: 'guilds',
+    data: Array.from(client.guilds.cache.values())
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((guild) => {
+        const icon = guild.iconURL({
+          format: 'png',
+          dynamic: true,
+          size: 32,
+        });
+        const channels = Array.from(guild.channels.cache.values())
+          // 2 is now the type for vc apperently
+          .filter((channel) => channel.type === 2)
+          .sort((a, b) =>
+            a.parent === b.parent
+              ? a.rawPosition - b.rawPosition
+              : (a.parent ? a.parent.rawPosition : 0) -
+                (b.parent ? b.parent.rawPosition : 0)
+          )
+          .map((channel) => {
+            return {
+              id: channel.id,
+              name: channel.name,
+              members: [...channel.members].map((v) => ({
+                id: v[0],
+                ...v[1],
+                user: v[1].user,
+              })),
+            };
+          });
 
-let currentToken = '';
-let currentDiscord = '';
+        return {
+          id: guild.id,
+          icon,
+          name: guild.name,
+          channels,
+        };
+      }),
+  });
+};
+
+const loginToDiscord = async (token) => {
+  client = new Client({
+    intents: [
+      GatewayIntentBits.MessageContent,
+      GatewayIntentBits.DirectMessages,
+      GatewayIntentBits.Guilds,
+      GatewayIntentBits.GuildVoiceStates,
+    ],
+  });
+
+  client.login(token);
+  await new Promise((resolve) => {
+    client.once('ready', resolve);
+  });
+
+  return guildData();
+};
+
+let client = null;
 let currentlyConnected = false;
 
-app.use(cors());
-
-app.post('/connect', (req, res) => {
+const wsServer = new ws.Server({
+  port: config.port,
+});
+wsServer.on('connection', async (socket) => {
   if (currentlyConnected) {
     error('Website attempting to connect, refusing connection');
-    res.statusCode(503);
-    res.send('Already connected to game, disconnect to allow connection');
+    websocket.terminate();
     return;
   }
 
-  currentToken = TetLib.genID(10);
+  info('Accepted website attempt to connect');
 
-  info('Accepted website attempt to connect, initializing discord client');
+  currentlyConnected = true;
 
-  // TODO: Discord stuff
-  info('initialized discord client, sending auth key to website');
-  res.send(currentToken);
+  info('Data sent to client');
+
+  socket.on('message', async (message) => {
+    const data = JSON.parse(message);
+    if (data.type === 'initialize') {
+      info('Initializing discord client');
+      socket.send(await loginToDiscord(data.token));
+      client.on('voiceStateUpdate', async (_old, _new) => {
+        info('VC Updated, sending data to client');
+        socket.send(guildData());
+      });
+      info('Initialized discord client');
+    }
+  });
+  socket.on('close', () => {
+    info('Connection closing');
+    currentlyConnected = false;
+    client.destroy();
+    info('Reset to initial state');
+  });
 });
 
-app.listen(config.port, () => {
-  info(`Server Started on port ${config.port}`);
-});
+info(`Server initialized on port ${config.port}`);

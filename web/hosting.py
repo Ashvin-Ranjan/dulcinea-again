@@ -10,4 +10,5 @@ Handler.extensions_map.update({
 })
 
 httpd = socketserver.TCPServer(("", PORT), Handler)
+print("[INFO]: Server is now up")
 httpd.serve_forever()

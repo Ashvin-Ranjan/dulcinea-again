@@ -19,36 +19,36 @@ export class HTTPError extends ClientError {
 export default class Client {
   constructor() {
     this.token = '';
-    this.base_url = '';
-    this.client_id = '';
+    this.baseURL = '';
+    this.guildCache = [];
+    this.guildStateUpdate = () => {};
+    this.websocket = null;
   }
 
   initialize(token, port) {
     this.token = token;
-    this.base_url = `http://localhost:${port}`;
-    this.client_id = '';
+    this.baseURL = `ws://localhost:${port}`;
+    this.websocket = null;
   }
 
   async connect() {
-    const response = await fetch(`${this.base_url}/connect`, {
-      method: 'POST',
-      body: this.token,
-    });
-
-    if (response.status === 503)
-      // Server is currently hosting another bot
-      throw new CannotConnectError();
-
-    if (!response.ok) throw new HTTPError(response.message, response.status);
-
-    this.client_id = await response.text();
+    this.websocket = new WebSocket(this.baseURL);
+    this.websocket.onopen = () =>
+      this.websocket.send(
+        JSON.stringify({ type: 'initialize', token: this.token })
+      );
+    this.websocket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      switch (data.intent) {
+        case 'guilds':
+          this.guildCache = data.data;
+          this.guildStateUpdate();
+          break;
+      }
+    };
   }
 
-  async disconnect() {
-    const response = await fetch(`${this.base_url}/disconnect`, {
-      method: 'POST',
-    });
-
-    if (!response.ok) throw new HTTPError(response.message, response.status);
+  setGuildStateUpdate(func) {
+    this.guildStateUpdate = func;
   }
 }

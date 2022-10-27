@@ -1,20 +1,20 @@
-export function getInput({ storageKey, form, input, saveCheckbox }) {
+export function getInput({ storageKeys, form, inputs, saveCheckbox }) {
   const localStorageValues = {
-    token: localStorage.getItem(storageKey.token),
-    port: localStorage.getItem(storageKey.port),
+    token: localStorage.getItem(storageKeys.token),
+    port: localStorage.getItem(storageKeys.port),
   };
   if (localStorageValues) {
-    input.token.value = localStorageValues.token;
-    input.port.value = localStorageValues.port;
+    inputs.token.value = localStorageValues.token;
+    inputs.port.value = localStorageValues.port;
     saveCheckbox.checked = true;
   }
   saveCheckbox.addEventListener('change', (e) => {
     if (saveCheckbox.checked) {
-      localStorage.setItem(storageKey.token, input.token.value);
-      localStorage.setItem(storageKey.port, input.port.value);
+      localStorage.setItem(storageKeys.token, inputs.token.value);
+      localStorage.setItem(storageKeys.port, inputs.port.value);
     } else {
-      localStorage.removeItem(storageKey.token);
-      localStorage.removeItem(storageKey.port);
+      localStorage.removeItem(storageKeys.token);
+      localStorage.removeItem(storageKeys.port);
     }
   });
   return new Promise((resolve) => {
@@ -22,12 +22,12 @@ export function getInput({ storageKey, form, input, saveCheckbox }) {
       'submit',
       (e) => {
         if (saveCheckbox.checked) {
-          localStorage.setItem(storageKey.token, input.token.value);
-          localStorage.setItem(storageKey.port, input.port.value);
+          localStorage.setItem(storageKeys.token, inputs.token.value);
+          localStorage.setItem(storageKeys.port, inputs.port.value);
         }
         resolve({
-          token: input.token.value,
-          port: input.port.value,
+          token: inputs.token.value,
+          port: inputs.port.value,
         });
         e.preventDefault();
       },
