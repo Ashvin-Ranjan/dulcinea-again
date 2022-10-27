@@ -13,19 +13,18 @@ export function MemberList({ channel, onStart, onBack }) {
   const [members, setMembers] = useState(() => getMembers(channel));
 
   useEffect(() => {
-    const handleVoiceStateUpdate = (oldState, newState) => {
-      if (
-        oldState.channelID === channel.id ||
-        newState.channelID === channel.id
-      ) {
-        setMembers(getMembers(channel));
-      }
-    };
-    channel.client.on('voiceStateUpdate', handleVoiceStateUpdate);
+    client.setGuildStateUpdate(() => {
+      const channel = client.guildCache
+        .filter(
+          (g) => g.channels.filter((v) => v.id == channelId).length == 1
+        )[0]
+        .channels.filter((v) => v.id == channelId)[0];
+      setMembers(getMembers(channel));
+    });
     return () => {
-      channel.client.off('voiceStateUpdate', handleVoiceStateUpdate);
+      client.setGuildStateUpdate(() => {});
     };
-  }, [channel]);
+  }, [client.guildCache]);
 
   return e(
     'div',
