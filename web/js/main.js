@@ -49,7 +49,7 @@ async function main() {
 
   // Keep playing the game
   document.body.classList.add('screen-game');
-  await game(channel, document.getElementById('game-root'));
+  await game(channel, document.getElementById('game-root'), client);
   document.body.classList.remove('screen-game');
   document.body.classList.add('screen-loading');
 }

@@ -69,28 +69,24 @@ function User({
   );
 }
 
-function Game({ channel, onEnd, questions }) {
+function Game({ channel, onEnd, questions, client }) {
   const [endTime, setEndTime] = useState(null);
   const [scores, setScores] = useState([]);
   const [gameState, setGameState] = useState({ type: 'answering', done: [] });
 
   useEffect(async () => {
     function getUser(userId) {
-      const member =
-        channel.members.get(userId) || channel.guild.members.cache.get(userId);
+      const member = channel.members.filter((v) => v.id === userId)[0];
+      console.log(userId, channel.members);
       return {
         id: userId,
         name: member.nickname || member.user.username,
-        avatar: member.user.displayAvatarURL({
-          format: 'png',
-          dynamic: true,
-          size: 128,
-        }),
+        avatar: member.user.displayAvatarURL,
       };
     }
 
     const memberIds = shuffleInPlace(
-      Array.from(channel.members.filter((member) => !member.user.bot).keys())
+      channel.members.filter((member) => !member.user.bot).map((v) => v.id)
     );
 
     const scores = new Map(memberIds.map((userId) => [userId, 0])); // UserId => number
@@ -98,6 +94,7 @@ function Game({ channel, onEnd, questions }) {
       setScores(
         Array.from(scores)
           .map(([userId, score]) => {
+            console.log(userId);
             const oldScore = oldScores && oldScores.get(userId);
             const user = {
               ...getUser(userId),
@@ -211,6 +208,8 @@ function Game({ channel, onEnd, questions }) {
     setGameState({ type: 'scoreboard' });
   }, [onEnd]);
 
+  console.log(window.client, client);
+
   const sortedScores = [...scores].sort((a, b) => b[1] - a[1]);
   return e(
     'div',
@@ -238,7 +237,7 @@ function Game({ channel, onEnd, questions }) {
             'span',
             null,
             'DM ',
-            e('strong', null, channel.client.user.tag),
+            e('strong', null, window.client.user.tag),
             ' your answers!'
           )
         )
@@ -319,23 +318,17 @@ function Game({ channel, onEnd, questions }) {
             e(
               'div',
               { className: 'game-scoreboard-winners' },
-              sortedScores
-                .slice(0, 3)
-                .map(([user, score], i) =>
-                  e(
-                    'div',
-                    {
-                      className: `game-score game-score-rank-${i}`,
-                      key: user.id,
-                    },
-                    e(User, { user }),
-                    e(
-                      'span',
-                      { className: `game-score-number big-bold` },
-                      score
-                    )
-                  )
+              sortedScores.slice(0, 3).map(([user, score], i) =>
+                e(
+                  'div',
+                  {
+                    className: `game-score game-score-rank-${i}`,
+                    key: user.id,
+                  },
+                  e(User, { user }),
+                  e('span', { className: `game-score-number big-bold` }, score)
                 )
+              )
             ),
             e(
               'div',
@@ -372,7 +365,7 @@ function Game({ channel, onEnd, questions }) {
   );
 }
 
-export async function game(channel, root) {
+export async function game(channel, root, client) {
   document.body.classList.add('screen-loading');
   const questions = await questionsPromise;
   document.body.classList.remove('screen-loading');
@@ -387,6 +380,7 @@ export async function game(channel, root) {
           channel,
           onEnd: resolve,
           questions,
+          client,
         })
       ),
       root

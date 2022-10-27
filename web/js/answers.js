@@ -19,7 +19,8 @@ export class Answers {
             resolve();
           }, time);
           for (const question of memberQuestions.get(member.id) || []) {
-            const message = await member.send(
+            const message = await window.client.send(
+              member.id,
               prefix + question.replace(/_/g, '\\_')
             );
             const answer = await message.channel
@@ -60,7 +61,7 @@ export class Answers {
             resolve();
             return;
           }
-          const message = await member.send(question);
+          const message = await window.client.send(member.id, question);
           const start = Date.now();
           setTimeout(() => {
             results.set(member.id, answer);

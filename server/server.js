@@ -19,45 +19,42 @@ const error = (message) => {
 
 // Other functions
 const guildData = () => {
-  return JSON.stringify({
-    intent: 'guilds',
-    data: Array.from(client.guilds.cache.values())
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .map((guild) => {
-        const icon = guild.iconURL({
-          format: 'png',
-          dynamic: true,
-          size: 32,
+  return Array.from(client.guilds.cache.values())
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((guild) => {
+      const icon = guild.iconURL({
+        format: 'png',
+        dynamic: true,
+        size: 32,
+      });
+      const channels = Array.from(guild.channels.cache.values())
+        // 2 is now the type for vc apperently
+        .filter((channel) => channel.type === 2)
+        .sort((a, b) =>
+          a.parent === b.parent
+            ? a.rawPosition - b.rawPosition
+            : (a.parent ? a.parent.rawPosition : 0) -
+              (b.parent ? b.parent.rawPosition : 0)
+        )
+        .map((channel) => {
+          return {
+            id: channel.id,
+            name: channel.name,
+            members: [...channel.members].map((v) => ({
+              id: v[0],
+              ...v[1],
+              user: v[1].user,
+            })),
+          };
         });
-        const channels = Array.from(guild.channels.cache.values())
-          // 2 is now the type for vc apperently
-          .filter((channel) => channel.type === 2)
-          .sort((a, b) =>
-            a.parent === b.parent
-              ? a.rawPosition - b.rawPosition
-              : (a.parent ? a.parent.rawPosition : 0) -
-                (b.parent ? b.parent.rawPosition : 0)
-          )
-          .map((channel) => {
-            return {
-              id: channel.id,
-              name: channel.name,
-              members: [...channel.members].map((v) => ({
-                id: v[0],
-                ...v[1],
-                user: v[1].user,
-              })),
-            };
-          });
 
-        return {
-          id: guild.id,
-          icon,
-          name: guild.name,
-          channels,
-        };
-      }),
-  });
+      return {
+        id: guild.id,
+        icon,
+        name: guild.name,
+        channels,
+      };
+    });
 };
 
 const loginToDiscord = async (token) => {
@@ -75,7 +72,10 @@ const loginToDiscord = async (token) => {
     client.once('ready', resolve);
   });
 
-  return guildData();
+  return JSON.stringify({
+    intent: 'initialize',
+    data: { guilds: guildData(), user: client.user },
+  });
 };
 
 let client = null;
@@ -99,14 +99,21 @@ wsServer.on('connection', async (socket) => {
 
   socket.on('message', async (message) => {
     const data = JSON.parse(message);
-    if (data.type === 'initialize') {
-      info('Initializing discord client');
-      socket.send(await loginToDiscord(data.token));
-      client.on('voiceStateUpdate', async (_old, _new) => {
-        info('VC Updated, sending data to client');
-        socket.send(guildData());
-      });
-      info('Initialized discord client');
+    switch (data.type) {
+      case 'initialize':
+        info('Initializing discord client');
+        socket.send(await loginToDiscord(data.data));
+        client.on('voiceStateUpdate', async (_old, _new) => {
+          info('VC Updated, sending data to client');
+          socket.send(JSON.stringify({ intent: 'guilds', data: guildData() }));
+        });
+        info('Initialized discord client');
+        break;
+      case 'message':
+        info('Sending message to user');
+        await client.users.cache.get(data.data.id).send(data.data.message);
+        info('Sent message to user');
+        break;
     }
   });
   socket.on('close', () => {
