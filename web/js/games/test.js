@@ -77,7 +77,6 @@ function Game({ channel, onEnd, questions, client }) {
   useEffect(async () => {
     function getUser(userId) {
       const member = channel.members.filter((v) => v.id === userId)[0];
-      console.log(userId, channel.members);
       return {
         id: userId,
         name: member.nickname || member.user.username,
@@ -94,7 +93,6 @@ function Game({ channel, onEnd, questions, client }) {
       setScores(
         Array.from(scores)
           .map(([userId, score]) => {
-            console.log(userId);
             const oldScore = oldScores && oldScores.get(userId);
             const user = {
               ...getUser(userId),
@@ -207,8 +205,6 @@ function Game({ channel, onEnd, questions, client }) {
     }
     setGameState({ type: 'scoreboard' });
   }, [onEnd]);
-
-  console.log(window.client, client);
 
   const sortedScores = [...scores].sort((a, b) => b[1] - a[1]);
   return e(

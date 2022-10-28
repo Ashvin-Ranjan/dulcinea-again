@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits } = require('discord.js');
+const { Client, GatewayIntentBits, Partials } = require('discord.js');
 const ws = require('ws');
 
 // Get config
@@ -43,7 +43,6 @@ const guildData = () => {
             members: [...channel.members].map((v) => ({
               id: v[0],
               ...v[1],
-              user: v[1].user,
             })),
           };
         });
@@ -65,6 +64,7 @@ const loginToDiscord = async (token) => {
       GatewayIntentBits.Guilds,
       GatewayIntentBits.GuildVoiceStates,
     ],
+    partials: [Partials.Channel],
   });
 
   client.login(token);
@@ -107,20 +107,30 @@ wsServer.on('connection', async (socket) => {
           info('VC Updated, sending data to client');
           socket.send(JSON.stringify({ intent: 'guilds', data: guildData() }));
         });
+        client.on('messageCreate', (message) => {
+          socket.send(JSON.stringify({ intent: 'dm', data: { ...message } }));
+        });
         info('Initialized discord client');
         break;
       case 'message':
-        info('Sending message to user');
-        await client.users.cache.get(data.data.id).send(data.data.message);
-        info('Sent message to user');
+        if (data.data.message.trim()) {
+          info('Sending message to user');
+          await client.users.cache.get(data.data.id).send(data.data.message);
+          info('Sent message to user');
+        }
         break;
     }
   });
+
   socket.on('close', () => {
     info('Connection closing');
     currentlyConnected = false;
     client.destroy();
     info('Reset to initial state');
+  });
+
+  socket.on('error', (error) => {
+    error(error);
   });
 });
 

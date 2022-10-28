@@ -86,7 +86,6 @@ function VcOrMemberList({ client, onStart }) {
           )[0]
           .channels.filter((v) => v.id == channelId)[0];
         if (channel) {
-          console.log(channel);
           setChannel(channel);
         }
       },

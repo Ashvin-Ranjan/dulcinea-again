@@ -24,6 +24,7 @@ export default class Client {
     this.guildStateUpdate = () => {};
     this.websocket = null;
     this.user = null;
+    this.dmUpdates = new Map();
   }
 
   initialize(token, port) {
@@ -37,7 +38,7 @@ export default class Client {
       this.websocket.send(
         JSON.stringify({ type: 'initialize', data: this.token })
       );
-    this.websocket.onmessage = (event) => {
+    this.websocket.onmessage = async (event) => {
       const data = JSON.parse(event.data);
       switch (data.intent) {
         case 'initialize':
@@ -48,6 +49,10 @@ export default class Client {
         case 'guilds':
           this.guildCache = data.data;
           this.guildStateUpdate();
+          break;
+        case 'dm':
+          if (this.dmUpdates.has(data.data.author.id))
+            await this.dmUpdates.get(data.data.author.id)(data.data);
           break;
       }
     };

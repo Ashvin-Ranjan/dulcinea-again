@@ -16,33 +16,32 @@ export class Answers {
           const start = Date.now();
           setTimeout(() => {
             results.set(member.id, answers);
+            window.client.dmUpdates.delete(member.id);
             resolve();
           }, time);
-          for (const question of memberQuestions.get(member.id) || []) {
-            const message = await window.client.send(
+          let remainingQuestions = [...memberQuestions.get(member.id || [])]; // You have to clone this array otherwise stuff does not work
+          if (remainingQuestions[0]) {
+            await window.client.send(
               member.id,
-              prefix + question.replace(/_/g, '\\_')
+              prefix + remainingQuestions.shift().replace(/_/g, '\\_')
             );
-            const answer = await message.channel
-              .awaitMessages(() => true, {
-                max: 1,
-                time: time + start - Date.now(),
-                errors: ['time'],
-              })
-              .catch(() => null);
-            if (answer) {
-              answers.push(answer.first().content);
-              answer
-                .first()
-                .react('✅')
-                .catch(() => null);
-            } else {
-              resolve();
-            }
+            window.client.dmUpdates.set(member.id, async (message) => {
+              if (message.content) {
+                answers.push(message.content);
+                if (remainingQuestions.length === 0) {
+                  results.set(member.id, answers);
+                  window.client.dmUpdates.delete(member.id);
+                  resolve();
+                  if (onUserDone) onUserDone(member.id);
+                  return;
+                }
+                await window.client.send(
+                  member.id,
+                  prefix + remainingQuestions.shift().replace(/_/g, '\\_')
+                );
+              }
+            });
           }
-          results.set(member.id, answers);
-          resolve();
-          if (onUserDone) onUserDone(member.id);
         });
       })
     );
@@ -61,29 +60,23 @@ export class Answers {
             resolve();
             return;
           }
-          const message = await window.client.send(member.id, question);
+          await window.client.send(member.id, question[0]);
           const start = Date.now();
           setTimeout(() => {
             results.set(member.id, answer);
             resolve();
           }, time);
-          for (;;) {
-            const ans = await message.channel
-              .awaitMessages(
-                (mess) => reactions.includes(mess.content.toLowerCase()),
-                { max: 1, time: time + start - Date.now(), errors: ['time'] }
-              )
-              .catch(() => null);
-            if (ans) {
-              answer = ans.first().content || answer;
-              if (Date.now() < start + time)
-                ans
-                  .first()
-                  .react('✅')
-                  .catch(() => null);
+          window.client.dmUpdates.set(member.id, async (message) => {
+            if (
+              message.content &&
+              reactions.includes(message.content.toLowerCase())
+            ) {
+              answer = message.content.toLowerCase();
+              results.set(member.id, answer);
+              window.client.dmUpdates.delete(member.id);
+              resolve();
             }
-            if (Date.now() > start + time) resolve();
-          }
+          });
         });
       })
     );
