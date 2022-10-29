@@ -32,13 +32,7 @@ async function main() {
   try {
     // Await the ready event
     await client.connect();
-  } catch (e) {
-    // TODO: Implement checks to see if it was that the server was busy and mald at the user if so
-    await client.disconnect();
-    // TODO: Fix something with this connect not working
-    await client.connect();
-  }
-
+  } catch (e) {}
   document.body.classList.remove('screen-loading');
   document.body.classList.add('screen-vc');
   const channel = await selectVoiceChannel(

@@ -64,7 +64,7 @@ export function MemberList({ channel, onStart, onBack }) {
       {
         onClick: onStart,
         className: 'start-btn',
-        disabled: !members.find((member) => !member.user.bot),
+        disabled: members.filter((member) => !member.user.bot).length < 3,
       },
       'Start'
     )
