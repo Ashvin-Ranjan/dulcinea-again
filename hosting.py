@@ -4,7 +4,12 @@ import socketserver
 
 PORT = 3000
 
-Handler = http.server.SimpleHTTPRequestHandler
+
+class Handler(http.server.SimpleHTTPRequestHandler):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, directory="web", **kwargs)
+
+
 Handler.extensions_map.update({
     ".js": "application/javascript",
 })
